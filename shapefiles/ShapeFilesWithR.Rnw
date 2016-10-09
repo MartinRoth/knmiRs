@@ -1,0 +1,211 @@
+\documentclass{beamer}
+
+\usepackage{knmiBeamer}
+\Engelstrue
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+
+\title[Intro to shapefiles in R]{Short introduction to shapefiles in R}
+\author{Martin Roth}
+\date{October 10, 2016}
+
+\begin{document}
+
+<<Setup, echo=FALSE, results='hide'>>=
+# some setup
+options(width=60)  # make the printing fit on the page
+set.seed(1121)   # make the results repeatable
+@
+
+
+\begin{frame}
+ \maketitle
+\end{frame}
+
+\begin{frame}{Shapefile}
+ \begin{itemize}
+  \item \textbf{popular} geospatial data format for GIS software
+  \item developed and regulated by ESRI but mostly open specification
+  \item can describe vector features: points, lines, and polygons
+  \item each item usually has attributes
+  \item drawbacks: null values (ESRI uses 0), poor with unicode, limited length of attribute names
+ \end{itemize}
+\end{frame}
+
+\begin{frame}{Libraries used}
+<<Libraries, message=FALSE>>=
+library(sp)
+
+library(rgdal)
+
+library(rgeos)
+
+library(ggplot2)
+
+library(ggmap)
+
+library(data.table)
+@
+\end{frame}
+
+\begin{frame}[fragile]{Spatial...DataFrame}
+ Within R the \emph{sp} package provides the equivalent data structures:
+ \begin{itemize}
+  \item
+   <<eval=FALSE>>=
+   SpatialPointsDataFrame
+   @
+  \item
+  <<eval=FALSE>>=
+   SpatialLinesDataFrame
+  @
+  \item
+  <<eval=FALSE>>=
+   SpatialPolygonsDataFrame
+  @
+ \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Read water board shapefile}
+% Download Waterschapsgrenzen_28992.zip
+% from http://maps.waterschapservices.nl/www/download/data/Waterschapsgrenzen_nl.xml
+% to ./data
+% Extract zip folder
+  <<>>=
+  filename     <- "./data/Waterschapsgrenzen_28992/"
+  layername    <- "Waterschapsgrenzen_28992"
+  waterschapen <- readOGR(filename, layername)
+  @
+
+\end{frame}
+
+\begin{frame}[fragile]{Calculate area}
+  <<>>=
+  infoWaterschap <- data.table(
+      name = waterschapen$waterschap,
+      area = gArea(waterschapen, byid=TRUE) / 1e+6 )
+  setkey(infoWaterschap, area)
+  knitr::kable(infoWaterschap[area > 2250])
+  @
+  % Slighly larger than 2448 km^2
+\end{frame}
+
+\begin{frame}[fragile]{Transform and write data}
+ <<>>=
+ waterschapen<- spTransform(
+    waterschapen,
+    CRS("+proj=longlat"))
+ @
+ <<eval=F>>=
+ writeOGR(waterschapen,
+          dsn="foldername",
+          layer="layername",
+          driver="ESRI Shapefile")
+ @
+\end{frame}
+
+\begin{frame}[fragile]{Mean rainfall}
+<<eval=FALSE>>=
+waterschapen.dat <-
+  data.table(fortify(waterschapen))
+
+waterschapen.dat[, # fake data!
+  meanRainfall := rnorm(1, 750, 25), by = id]
+
+ggplot(waterschapen.dat,
+       aes(x = long, y = lat,
+           fill = meanRainfall,
+           group = group)) +
+  geom_polygon() + coord_fixed(ratio = 31/19)
+@
+\end{frame}
+
+\begin{frame}
+<<echo=FALSE, message=FALSE, fig.height=4.4>>=
+waterschapen.dat <- data.table(
+  fortify(waterschapen))
+
+waterschapen.dat[,
+  meanRainfall := rnorm(1, 750, 25), by = id]
+
+ggplot(waterschapen.dat,
+       aes(x = long, y = lat,
+           fill = meanRainfall,
+           group = group)) +
+  geom_polygon() +
+  coord_fixed(ratio = 31/19) +
+  scale_fill_gradient(name = "Mean rainfall [mm]", low = "#edf8b1" , high = "#2c7fb8")
+@
+\end{frame}
+
+\begin{frame}[fragile]{Subsetting and ggmap I}
+<<eval=FALSE>>=
+ValleiEnVeluwe <- subset(waterschapen,
+waterschapen$waterschap == "Vallei & Veluwe")
+ValleiEnVeluwe <- fortify(ValleiEnVeluwe)
+
+basemap <- ggmap(get_map(
+  location = c(lon = 5.75, lat = 52.25),
+                    color = "color",
+                    source = "google",
+                    maptype = "satellite",
+                    zoom = 8))
+
+basemap + geom_path(aes(x = long, y = lat),
+  col = "red", size = 1, data = ValleiEnVeluwe)
+@
+\end{frame}
+
+\begin{frame}
+<<echo=FALSE, message=FALSE, fig.height=4.4>>=
+ValleiEnVeluwe <- subset(waterschapen,
+waterschapen$waterschap == "Vallei & Veluwe")
+ValleiEnVeluwe <- fortify(ValleiEnVeluwe)
+
+basemap <- ggmap(get_map(
+  location = c(lon = 5.75, lat = 52.25),
+                    color = "color",
+                    source = "google",
+                    maptype = "satellite",
+                    zoom = 7))
+
+basemap + geom_path(aes(x = long, y = lat),
+  col = "red", size = 1, data = ValleiEnVeluwe)
+@
+\end{frame}
+
+\begin{frame}[fragile]{Data selection}
+<<eval=FALSE>>=
+library(knmiR)
+
+quakes <- Earthquakes("induced",
+                      area = Groningen,
+                      period = "2016",
+                      path=NULL)
+
+basemap + geom_point(data=quakes,
+  alpha=0.3, col = "#d95f0e")
+@
+\end{frame}
+\begin{frame}
+<<echo=FALSE, fig.height=3.3>>=
+library(knmiR)
+
+quakes <- Earthquakes("induced",
+                      area = Groningen,
+                      period = "2016",
+                      path=NULL)
+
+basemap <- ggmap(get_map(
+  location = c(lon = 6.8, lat = 53.25),
+                    color = "color",
+                    source = "google",
+                    maptype = "satellite",
+                    zoom = 9))
+
+basemap + geom_point(data=quakes,
+  alpha=0.5, col = "#d95f0e")
+@
+\end{frame}
+
+\end{document}
