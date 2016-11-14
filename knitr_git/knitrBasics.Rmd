@@ -60,6 +60,10 @@ print(x.split(' '))
 x <- rnorm(100000)
 ```
 
-```{r ThenAverage, dependson='FirstSimulate'}
+```{r Differentx}
+x <- 5
+```
+
+```{r ThenAverage, cache = TRUE, dependson='FirstSimulate'}
 mean(x)
 ```
