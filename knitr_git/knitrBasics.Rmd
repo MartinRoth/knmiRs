@@ -1,5 +1,5 @@
 ---
-title: "Test Technologies"
+title: "Test R markdown"
 author: "Martin Roth"
 date: "November 14, 2016"
 output: html_document

@@ -1,0 +1,27 @@
+\documentclass{article}
+
+\title{Test latex $+$ knitr}
+\author{Martin}
+
+\begin{document}
+
+%\maketitle
+
+<<Simulation, echo=FALSE, cache=TRUE, fig.height=4, fig.cap="Simulation of random normals">>=
+n <- 100
+plot(rnorm(n))
+@
+For the simulation in Figure \ref{fig:Simulation}, in total
+\Sexpr{n} random normal variables were generated.
+Labelling of tables is slightly different, see e.g. Table \ref{tab:iris}.
+
+<<cars>>=
+summary(cars)
+@
+
+<<iris, echo = FALSE>>=
+knitr::kable(head(iris), caption = "\\label{tab:iris} Head of iris")
+@
+
+
+\end{document}
